@@ -1,0 +1,292 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="14.0">
+  <PropertyGroup>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectVersion>7.0</ProjectVersion>
+    <ToolchainName>com.Atmel.AVRGCC8.CPP</ToolchainName>
+    <ProjectGuid>dce6c7e3-ee26-4d79-826b-08594b9ad897</ProjectGuid>
+    <avrdevice>ATmega328P</avrdevice>
+    <avrdeviceseries>none</avrdeviceseries>
+    <OutputType>Executable</OutputType>
+    <Language>CPP</Language>
+    <OutputFileName>$(MSBuildProjectName)</OutputFileName>
+    <OutputFileExtension>.elf</OutputFileExtension>
+    <OutputDirectory>$(MSBuildProjectDirectory)\$(Configuration)</OutputDirectory>
+    <AssemblyName>WASP_0001_0003_2017</AssemblyName>
+    <Name>WASP_0001_0003_2017</Name>
+    <RootNamespace>WASP_0001_0003_2017</RootNamespace>
+    <ToolchainFlavour>Native</ToolchainFlavour>
+    <KeepTimersRunning>true</KeepTimersRunning>
+    <OverrideVtor>false</OverrideVtor>
+    <CacheFlash>true</CacheFlash>
+    <ProgFlashFromRam>true</ProgFlashFromRam>
+    <RamSnippetAddress />
+    <UncachedRange />
+    <preserveEEPROM>true</preserveEEPROM>
+    <OverrideVtorValue />
+    <BootSegment>2</BootSegment>
+    <eraseonlaunchrule>0</eraseonlaunchrule>
+    <AsfFrameworkConfig>
+      <framework-data xmlns="">
+        <options />
+        <configurations />
+        <files />
+        <documentation help="" />
+        <offline-documentation help="" />
+        <dependencies>
+          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.32.0" />
+        </dependencies>
+      </framework-data>
+    </AsfFrameworkConfig>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <ToolchainSettings>
+      <AvrGccCpp>
+  <avrgcc.common.Device>-mmcu=atmega328p -B "%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\gcc\dev\atmega328p"</avrgcc.common.Device>
+  <avrgcc.common.outputfiles.hex>True</avrgcc.common.outputfiles.hex>
+  <avrgcc.common.outputfiles.lss>True</avrgcc.common.outputfiles.lss>
+  <avrgcc.common.outputfiles.eep>True</avrgcc.common.outputfiles.eep>
+  <avrgcc.common.outputfiles.srec>True</avrgcc.common.outputfiles.srec>
+  <avrgcc.common.outputfiles.usersignatures>False</avrgcc.common.outputfiles.usersignatures>
+  <avrgcc.compiler.general.ChangeDefaultCharTypeUnsigned>True</avrgcc.compiler.general.ChangeDefaultCharTypeUnsigned>
+  <avrgcc.compiler.general.ChangeDefaultBitFieldUnsigned>True</avrgcc.compiler.general.ChangeDefaultBitFieldUnsigned>
+  <avrgcc.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>NDEBUG</Value>
+    </ListValues>
+  </avrgcc.compiler.symbols.DefSymbols>
+  <avrgcc.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
+      <Value>..\include\libraries\DallasTemperature</Value>
+      <Value>..\include\libraries\OneWire</Value>
+      <Value>..\include\libraries\FreeRTOS\examples\GoldilocksAnalogueTestSuite</Value>
+      <Value>..\include\libraries\FreeRTOS\src</Value>
+      <Value>..\include\libraries\Adafruit_MQTT_Library</Value>
+      <Value>..\include\libraries\SoftwareSerial\src</Value>
+      <Value>..\include\libraries\EEPROM\src</Value>
+      <Value>..\include\libraries\PubSubClient\src</Value>
+      <Value>..\include\libraries\PubSubClient\tests\src\lib</Value>
+    </ListValues>
+  </avrgcc.compiler.directories.IncludePaths>
+  <avrgcc.compiler.optimization.level>Optimize for size (-Os)</avrgcc.compiler.optimization.level>
+  <avrgcc.compiler.optimization.PackStructureMembers>True</avrgcc.compiler.optimization.PackStructureMembers>
+  <avrgcc.compiler.optimization.AllocateBytesNeededForEnum>True</avrgcc.compiler.optimization.AllocateBytesNeededForEnum>
+  <avrgcc.compiler.warnings.AllWarnings>True</avrgcc.compiler.warnings.AllWarnings>
+  <avrgcccpp.compiler.general.ChangeDefaultCharTypeUnsigned>True</avrgcccpp.compiler.general.ChangeDefaultCharTypeUnsigned>
+  <avrgcccpp.compiler.general.ChangeDefaultBitFieldUnsigned>True</avrgcccpp.compiler.general.ChangeDefaultBitFieldUnsigned>
+  <avrgcccpp.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>NDEBUG</Value>
+    </ListValues>
+  </avrgcccpp.compiler.symbols.DefSymbols>
+  <avrgcccpp.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
+      <Value>..\include\libraries\DallasTemperature</Value>
+      <Value>..\include\libraries\OneWire</Value>
+      <Value>..\include\libraries\FreeRTOS\examples\GoldilocksAnalogueTestSuite</Value>
+      <Value>..\include\libraries\FreeRTOS\src</Value>
+      <Value>..\include\libraries\Adafruit_MQTT_Library</Value>
+      <Value>..\include\libraries\SoftwareSerial\src</Value>
+      <Value>..\include\libraries\EEPROM\src</Value>
+      <Value>..\include\libraries\PubSubClient\src</Value>
+      <Value>..\include\libraries\PubSubClient\tests\src\lib</Value>
+    </ListValues>
+  </avrgcccpp.compiler.directories.IncludePaths>
+  <avrgcccpp.compiler.optimization.level>Optimize for size (-Os)</avrgcccpp.compiler.optimization.level>
+  <avrgcccpp.compiler.optimization.PackStructureMembers>True</avrgcccpp.compiler.optimization.PackStructureMembers>
+  <avrgcccpp.compiler.optimization.AllocateBytesNeededForEnum>True</avrgcccpp.compiler.optimization.AllocateBytesNeededForEnum>
+  <avrgcccpp.compiler.warnings.AllWarnings>True</avrgcccpp.compiler.warnings.AllWarnings>
+  <avrgcccpp.linker.libraries.Libraries>
+    <ListValues>
+      <Value>libm</Value>
+      <Value>libprintf_flt</Value>
+    </ListValues>
+  </avrgcccpp.linker.libraries.Libraries>
+  <avrgcccpp.assembler.general.IncludePaths>
+    <ListValues>
+      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
+    </ListValues>
+  </avrgcccpp.assembler.general.IncludePaths>
+</AvrGccCpp>
+    </ToolchainSettings>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <ToolchainSettings>
+      <AvrGccCpp>
+  <avrgcc.common.Device>-mmcu=atmega328p -B "%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\gcc\dev\atmega328p"</avrgcc.common.Device>
+  <avrgcc.common.outputfiles.hex>True</avrgcc.common.outputfiles.hex>
+  <avrgcc.common.outputfiles.lss>True</avrgcc.common.outputfiles.lss>
+  <avrgcc.common.outputfiles.eep>True</avrgcc.common.outputfiles.eep>
+  <avrgcc.common.outputfiles.srec>True</avrgcc.common.outputfiles.srec>
+  <avrgcc.common.outputfiles.usersignatures>False</avrgcc.common.outputfiles.usersignatures>
+  <avrgcc.compiler.general.ChangeDefaultCharTypeUnsigned>True</avrgcc.compiler.general.ChangeDefaultCharTypeUnsigned>
+  <avrgcc.compiler.general.ChangeDefaultBitFieldUnsigned>True</avrgcc.compiler.general.ChangeDefaultBitFieldUnsigned>
+  <avrgcc.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>DEBUG</Value>
+      <Value>F_CPU=16000000UL</Value>
+      <Value>ARDUINO=10802</Value>
+      <Value>ARDUINO_AVR_UNO</Value>
+      <Value>ARDUINO_ARCH_AVR</Value>
+      <Value>USB_VID=0x2341</Value>
+      <Value>USB_PID=0x0043</Value>
+    </ListValues>
+  </avrgcc.compiler.symbols.DefSymbols>
+  <avrgcc.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
+      <Value>%24(ProjectDir)\..\ArduinoCore\include\core</Value>
+      <Value>%24(ProjectDir)\..\ArduinoCore\include\variants\standard</Value>
+      <Value>../include/libraries/DallasTemperature</Value>
+      <Value>../include/libraries/OneWire</Value>
+      <Value>../include/libraries/TinyGSM/src</Value>
+      <Value>..\include\libraries\Adafruit_MQTT_Library</Value>
+      <Value>../include/libraries/SoftwareSerial/src</Value>
+      <Value>../include/libraries/JSON</Value>
+      <Value>..\include\libraries\EEPROM\src</Value>
+      <Value>..\include\libraries\PubSubClient\src</Value>
+      <Value>..\include\libraries\PubSubClient\tests\src\lib</Value>
+      <Value>..\include\libraries\DallasTemperature</Value>
+    </ListValues>
+  </avrgcc.compiler.directories.IncludePaths>
+  <avrgcc.compiler.optimization.level>Optimize for size (-Os)</avrgcc.compiler.optimization.level>
+  <avrgcc.compiler.optimization.PackStructureMembers>True</avrgcc.compiler.optimization.PackStructureMembers>
+  <avrgcc.compiler.optimization.AllocateBytesNeededForEnum>True</avrgcc.compiler.optimization.AllocateBytesNeededForEnum>
+  <avrgcc.compiler.optimization.DebugLevel>Default (-g2)</avrgcc.compiler.optimization.DebugLevel>
+  <avrgcc.compiler.warnings.AllWarnings>True</avrgcc.compiler.warnings.AllWarnings>
+  <avrgcc.compiler.warnings.InhibitAllWarnings>True</avrgcc.compiler.warnings.InhibitAllWarnings>
+  <avrgcc.compiler.miscellaneous.OtherFlags>-std=gnu99 -std=gnu11 -fno-threadsafe-statics -ffunction-sections -fdata-sections</avrgcc.compiler.miscellaneous.OtherFlags>
+  <avrgcccpp.compiler.general.ChangeDefaultCharTypeUnsigned>True</avrgcccpp.compiler.general.ChangeDefaultCharTypeUnsigned>
+  <avrgcccpp.compiler.general.ChangeDefaultBitFieldUnsigned>True</avrgcccpp.compiler.general.ChangeDefaultBitFieldUnsigned>
+  <avrgcccpp.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>DEBUG</Value>
+      <Value>F_CPU=16000000UL</Value>
+      <Value>ARDUINO=10802</Value>
+      <Value>ARDUINO_AVR_UNO</Value>
+      <Value>ARDUINO_ARCH_AVR</Value>
+      <Value>USB_VID=0x2341</Value>
+      <Value>USB_PID=0x0043</Value>
+    </ListValues>
+  </avrgcccpp.compiler.symbols.DefSymbols>
+  <avrgcccpp.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
+      <Value>%24(ProjectDir)\..\ArduinoCore\include\core</Value>
+      <Value>%24(ProjectDir)\..\ArduinoCore\include\variants\standard</Value>
+      <Value>../include/libraries/DallasTemperature</Value>
+      <Value>../include/libraries/OneWire</Value>
+      <Value>../include/libraries/TinyGSM/src</Value>
+      <Value>..\include\libraries\Adafruit_MQTT_Library</Value>
+      <Value>../include/libraries/SoftwareSerial/src</Value>
+      <Value>../include/libraries/JSON</Value>
+      <Value>..\include\libraries\EEPROM\src</Value>
+      <Value>..\include\libraries\PubSubClient\src</Value>
+      <Value>..\include\libraries\PubSubClient\tests\src\lib</Value>
+      <Value>..\include\libraries\DallasTemperature</Value>
+    </ListValues>
+  </avrgcccpp.compiler.directories.IncludePaths>
+  <avrgcccpp.compiler.optimization.level>Optimize for size (-Os)</avrgcccpp.compiler.optimization.level>
+  <avrgcccpp.compiler.optimization.PackStructureMembers>True</avrgcccpp.compiler.optimization.PackStructureMembers>
+  <avrgcccpp.compiler.optimization.AllocateBytesNeededForEnum>True</avrgcccpp.compiler.optimization.AllocateBytesNeededForEnum>
+  <avrgcccpp.compiler.optimization.DebugLevel>Default (-g2)</avrgcccpp.compiler.optimization.DebugLevel>
+  <avrgcccpp.compiler.warnings.AllWarnings>True</avrgcccpp.compiler.warnings.AllWarnings>
+  <avrgcccpp.compiler.warnings.InhibitAllWarnings>True</avrgcccpp.compiler.warnings.InhibitAllWarnings>
+  <avrgcccpp.compiler.miscellaneous.OtherFlags>-std=gnu++11 -fno-threadsafe-statics -ffunction-sections -fdata-sections</avrgcccpp.compiler.miscellaneous.OtherFlags>
+  <avrgcccpp.linker.general.UseVprintfLibrary>True</avrgcccpp.linker.general.UseVprintfLibrary>
+  <avrgcccpp.linker.libraries.Libraries>
+    <ListValues>
+      <Value>libm</Value>
+      <Value>libprintf_flt</Value>
+    </ListValues>
+  </avrgcccpp.linker.libraries.Libraries>
+  <avrgcccpp.assembler.general.IncludePaths>
+    <ListValues>
+      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
+    </ListValues>
+  </avrgcccpp.assembler.general.IncludePaths>
+  <avrgcccpp.assembler.debugging.DebugLevel>Default (-Wa,-g)</avrgcccpp.assembler.debugging.DebugLevel>
+</AvrGccCpp>
+    </ToolchainSettings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="include\libraries\Adafruit_MQTT_Library\Adafruit_MQTT.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="include\libraries\Adafruit_MQTT_Library\Adafruit_MQTT_Client.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="include\libraries\DallasTemperature\DallasTemperature.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="include\libraries\EEPROM\src\EEPROM.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="include\libraries\OneWire\OneWire.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="include\libraries\SoftwareSerial\src\SoftwareSerial.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="include\libraries\TinyGSM\src\TinyGsmClient.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="include\libraries\TinyGSM\src\TinyGsmClientSIM800.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="include\libraries\TinyGSM\src\TinyGsmCommon.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="include\libraries\TinyGSM\src\TinyGsmFifo.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="main.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\libraries\Adafruit_MQTT_Library\Adafruit_MQTT.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\libraries\Adafruit_MQTT_Library\Adafruit_MQTT_Client.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\libraries\DallasTemperature\DallasTemperature.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\libraries\OneWire\OneWire.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\libraries\SoftwareSerial\src\SoftwareSerial.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ArduinoCore\ArduinoCore.cppproj">
+      <Name>ArduinoCore</Name>
+      <Project>{16642f14-e6c6-4659-9dc4-b7e030eadd0b}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="include\" />
+    <Folder Include="include\libraries\" />
+    <Folder Include="include\libraries\Adafruit_MQTT_Library\" />
+    <Folder Include="include\libraries\DallasTemperature\" />
+    <Folder Include="include\libraries\EEPROM\" />
+    <Folder Include="include\libraries\EEPROM\src\" />
+    <Folder Include="include\libraries\SoftwareSerial\" />
+    <Folder Include="include\libraries\SoftwareSerial\src\" />
+    <Folder Include="include\libraries\TinyGSM" />
+    <Folder Include="include\libraries\OneWire\" />
+    <Folder Include="include\libraries\TinyGSM\src" />
+    <Folder Include="src\" />
+    <Folder Include="src\libraries\" />
+    <Folder Include="src\libraries\Adafruit_MQTT_Library\" />
+    <Folder Include="src\libraries\DallasTemperature\" />
+    <Folder Include="src\libraries\OneWire\" />
+    <Folder Include="src\libraries\SoftwareSerial\" />
+    <Folder Include="src\libraries\SoftwareSerial\src\" />
+  </ItemGroup>
+  <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />
+</Project>

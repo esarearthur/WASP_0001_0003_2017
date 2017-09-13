@@ -5,7 +5,7 @@
     <ProjectVersion>7.0</ProjectVersion>
     <ToolchainName>com.Atmel.AVRGCC8.CPP</ToolchainName>
     <ProjectGuid>dce6c7e3-ee26-4d79-826b-08594b9ad897</ProjectGuid>
-    <avrdevice>ATmega328P</avrdevice>
+    <avrdevice>ATmega1284P</avrdevice>
     <avrdeviceseries>none</avrdeviceseries>
     <OutputType>Executable</OutputType>
     <Language>CPP</Language>
@@ -38,11 +38,13 @@
         </dependencies>
       </framework-data>
     </AsfFrameworkConfig>
+    <avrtool />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <ToolchainSettings>
       <AvrGccCpp>
-  <avrgcc.common.Device>-mmcu=atmega328p -B "%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\gcc\dev\atmega328p"</avrgcc.common.Device>
+  <avrgcc.common.Device>-mmcu=atmega1284p -B "%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\gcc\dev\atmega1284p"</avrgcc.common.Device>
+  <avrgcc.common.optimization.RelaxBranches>True</avrgcc.common.optimization.RelaxBranches>
   <avrgcc.common.outputfiles.hex>True</avrgcc.common.outputfiles.hex>
   <avrgcc.common.outputfiles.lss>True</avrgcc.common.outputfiles.lss>
   <avrgcc.common.outputfiles.eep>True</avrgcc.common.outputfiles.eep>
@@ -57,7 +59,6 @@
   </avrgcc.compiler.symbols.DefSymbols>
   <avrgcc.compiler.directories.IncludePaths>
     <ListValues>
-      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
       <Value>..\include\libraries\DallasTemperature</Value>
       <Value>..\include\libraries\OneWire</Value>
       <Value>..\include\libraries\FreeRTOS\examples\GoldilocksAnalogueTestSuite</Value>
@@ -67,6 +68,7 @@
       <Value>..\include\libraries\EEPROM\src</Value>
       <Value>..\include\libraries\PubSubClient\src</Value>
       <Value>..\include\libraries\PubSubClient\tests\src\lib</Value>
+      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
     </ListValues>
   </avrgcc.compiler.directories.IncludePaths>
   <avrgcc.compiler.optimization.level>Optimize for size (-Os)</avrgcc.compiler.optimization.level>
@@ -82,7 +84,6 @@
   </avrgcccpp.compiler.symbols.DefSymbols>
   <avrgcccpp.compiler.directories.IncludePaths>
     <ListValues>
-      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
       <Value>..\include\libraries\DallasTemperature</Value>
       <Value>..\include\libraries\OneWire</Value>
       <Value>..\include\libraries\FreeRTOS\examples\GoldilocksAnalogueTestSuite</Value>
@@ -92,6 +93,7 @@
       <Value>..\include\libraries\EEPROM\src</Value>
       <Value>..\include\libraries\PubSubClient\src</Value>
       <Value>..\include\libraries\PubSubClient\tests\src\lib</Value>
+      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
     </ListValues>
   </avrgcccpp.compiler.directories.IncludePaths>
   <avrgcccpp.compiler.optimization.level>Optimize for size (-Os)</avrgcccpp.compiler.optimization.level>
@@ -115,7 +117,8 @@
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <ToolchainSettings>
       <AvrGccCpp>
-  <avrgcc.common.Device>-mmcu=atmega328p -B "%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\gcc\dev\atmega328p"</avrgcc.common.Device>
+  <avrgcc.common.Device>-mmcu=atmega1284p -B "%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\gcc\dev\atmega1284p"</avrgcc.common.Device>
+  <avrgcc.common.optimization.RelaxBranches>True</avrgcc.common.optimization.RelaxBranches>
   <avrgcc.common.outputfiles.hex>True</avrgcc.common.outputfiles.hex>
   <avrgcc.common.outputfiles.lss>True</avrgcc.common.outputfiles.lss>
   <avrgcc.common.outputfiles.eep>True</avrgcc.common.outputfiles.eep>
@@ -136,7 +139,6 @@
   </avrgcc.compiler.symbols.DefSymbols>
   <avrgcc.compiler.directories.IncludePaths>
     <ListValues>
-      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
       <Value>%24(ProjectDir)\..\ArduinoCore\include\core</Value>
       <Value>%24(ProjectDir)\..\ArduinoCore\include\variants\standard</Value>
       <Value>../include/libraries/DallasTemperature</Value>
@@ -149,6 +151,7 @@
       <Value>..\include\libraries\PubSubClient\src</Value>
       <Value>..\include\libraries\PubSubClient\tests\src\lib</Value>
       <Value>..\include\libraries\DallasTemperature</Value>
+      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
     </ListValues>
   </avrgcc.compiler.directories.IncludePaths>
   <avrgcc.compiler.optimization.level>Optimize for size (-Os)</avrgcc.compiler.optimization.level>
@@ -173,7 +176,6 @@
   </avrgcccpp.compiler.symbols.DefSymbols>
   <avrgcccpp.compiler.directories.IncludePaths>
     <ListValues>
-      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
       <Value>%24(ProjectDir)\..\ArduinoCore\include\core</Value>
       <Value>%24(ProjectDir)\..\ArduinoCore\include\variants\standard</Value>
       <Value>../include/libraries/DallasTemperature</Value>
@@ -186,6 +188,7 @@
       <Value>..\include\libraries\PubSubClient\src</Value>
       <Value>..\include\libraries\PubSubClient\tests\src\lib</Value>
       <Value>..\include\libraries\DallasTemperature</Value>
+      <Value>%24(PackRepoDir)\Atmel\ATmega_DFP\1.2.132\include</Value>
     </ListValues>
   </avrgcccpp.compiler.directories.IncludePaths>
   <avrgcccpp.compiler.optimization.level>Optimize for size (-Os)</avrgcccpp.compiler.optimization.level>
@@ -262,13 +265,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ArduinoCore\ArduinoCore.cppproj">
-      <Name>ArduinoCore</Name>
-      <Project>{16642f14-e6c6-4659-9dc4-b7e030eadd0b}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Folder Include="include\" />
     <Folder Include="include\libraries\" />
     <Folder Include="include\libraries\Adafruit_MQTT_Library\" />
@@ -287,6 +283,13 @@
     <Folder Include="src\libraries\OneWire\" />
     <Folder Include="src\libraries\SoftwareSerial\" />
     <Folder Include="src\libraries\SoftwareSerial\src\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ArduinoCore\ArduinoCore.cppproj">
+      <Name>ArduinoCore</Name>
+      <Project>{16642f14-e6c6-4659-9dc4-b7e030eadd0b}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />
 </Project>

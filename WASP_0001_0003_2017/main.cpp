@@ -17,7 +17,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
    
-        MCU: ATMega328P
+        MCU: #ATMega328P / ATMega1284P
        XTAL: 16MHz
    ADC VREF: 5V
    
@@ -265,8 +265,7 @@ uint32_t GetTimeStamp(uint8_t year, uint8_t month, uint8_t day, uint8_t hour, ui
 uint32_t tPublishDataMillis = 0;
 void TaskPublishData(void)
 {
-	struct DateTime 
-	{
+	struct DateTime {
 		uint16_t Year, Month, Day, Hour, Minute, Second;
 	} NTP = {
 		0, 0, 0, 0, 0, 0

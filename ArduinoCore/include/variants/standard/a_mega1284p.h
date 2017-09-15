@@ -307,4 +307,9 @@ const uint8_t PROGMEM digital_pin_to_timer_PGM[] =
 };
 #endif // ARDUINO_MAIN
 
+#define SERIAL_PORT_MONITOR         Serial
+#define SERIAL_PORT_HARDWARE        Serial
+#define SERIAL_PORT_HARDWARE1       Serial1
+#define SERIAL_PORT_HARDWARE_OPEN   Serial1
+
 #endif /* A_MEGA1284P_H_ */

@@ -17,7 +17,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
    
-        MCU: #ATMega328P / ATMega1284P
+        MCU: ATMega328P / #ATMega1284P
        XTAL: 16MHz
    ADC VREF: 5V
    
@@ -33,6 +33,8 @@
 #include <Adafruit_MQTT_Client.h>
 #include <Adafruit_MQTT.h>
 #include <EEPROM.h>
+#include <port.h>
+#include <util/delay.h>
 
 // Declared weak in Arduino.h to allow user redefinitions.
 int atexit(void (* /*func*/ )()) { return 0; }
@@ -91,7 +93,6 @@ DallasTemperature TEMP_PROBE(&oneWire);
 #define AIO_SERVERPORT 1883                  // use 8883 for SSL
 #define AIO_CHANNEL_SUB "DEV_ID/SUB/DATA"
 #define AIO_CHANNEL_PUB "DEV_ID/PUB/DATA"
-#define AIO_CHANNEL_TIME "$SYS/broker/time"
 
 // Create modem serial port
 TinyGsm modem(SerialAT);
@@ -311,6 +312,7 @@ void TaskPublishData(void)
 	
 int main(void)
 {
+	mcu_init();
 	init();
 	initVariant();
 
@@ -330,14 +332,38 @@ int main(void)
 }
 
 void setup()
-{
+{	
+	/* Enable TIMER0 for delay to work */
+	PRR0 &= ~(1 << PRTIM0);
+	
+	/* Set pin direction to input */
+	PORTD_set_pin_dir(0, PORT_DIR_IN);
+	/* Turn off pull mode */
+	PORTD_set_pin_pull_mode(0, PORT_PULL_OFF);
+	/* Set pin direction to output */
+	PORTD_set_pin_dir(1, PORT_DIR_OUT);
+	/* Set pin level to low */
+	PORTD_set_pin_level(1, false);
+	/* Enable USART0 */
+	PRR0 &= ~(1 << PRUSART0);
 	Serial.begin(9600);
 	
 	TEMP_PROBE.begin();
 	
-	// Set GSM module baud rate
+	/* Set pin direction to input */
+	PORTD_set_pin_dir(2, PORT_DIR_IN);
+	/* Turn off pull mode */
+	PORTD_set_pin_pull_mode(2, PORT_PULL_OFF);
+	/* Set pin direction to output */
+	PORTD_set_pin_dir(3, PORT_DIR_OUT);
+	/* Set pin level to low */
+	PORTD_set_pin_level(3, false);
+	/* Enable USART1 */
+	PRR0 &= ~(1 << PRUSART1);
 	SerialAT.begin(9600);
-	delay(3000);
+	while(!SerialAT);
+	
+	delay(1000);
 	
 	loadConfig();
 	modem.factoryDefault();

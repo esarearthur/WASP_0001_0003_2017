@@ -26,6 +26,7 @@
 #define TINY_GSM_MODEM_SIM900
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <SoftwareSerial.h>
@@ -34,18 +35,6 @@
 #include <Adafruit_MQTT.h>
 #include <EEPROM.h>
 #include <port.h>
-#include <util/delay.h>
-
-// Declared weak in Arduino.h to allow user redefinitions.
-int atexit(void (* /*func*/ )()) { return 0; }
-
-// Weak empty variant initialization function.
-// May be redefined by variant files.
-void initVariant() __attribute__((weak));
-void initVariant() { }
-
-void setupUSB() __attribute__((weak));
-void setupUSB() { }
 
 #define LM35    0x00
 #define DS18B20 0x01
@@ -54,10 +43,10 @@ void setupUSB() { }
 #define INTERVAL_5000 5000
 #define INTERVAL_10000 10000
 
-#define Vref 5.00
+#define Vref 1100
 
 // Data wire is plugged into port 2 on the Arduino
-#define ONE_WIRE_BUS A2
+#define ONE_WIRE_BUS 30
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
@@ -88,11 +77,22 @@ DallasTemperature TEMP_PROBE(&oneWire);
 #define GPRS_LOGIN NULL
 #define GPRS_PASSWORD NULL
 
+#define ADAFRUIT
+
 // MQTT variable setup
+#ifdef ECLIPSE
 #define AIO_SERVER "iot.eclipse.org"
+#endif
+#ifdef ADAFRUIT
+#define AIO_SERVER "io.adafruit.com"
+#endif
 #define AIO_SERVERPORT 1883                  // use 8883 for SSL
-#define AIO_CHANNEL_SUB "DEV_ID/SUB/DATA"
-#define AIO_CHANNEL_PUB "DEV_ID/PUB/DATA"
+#define AIO_USERNAME    "esarearthur"
+#define AIO_KEY         "4f111091fbfd45d09c24e5c75df850da"
+#define AIO_CHANNEL_P1 AIO_USERNAME "/feeds/wasp_boardTemp"
+#define AIO_CHANNEL_P2 AIO_USERNAME "/feeds/wasp_probeTemp"
+#define AIO_CHANNEL_P3 AIO_USERNAME "/feeds/wasp_probePH"
+#define AIO_CHANNEL_S1 AIO_USERNAME "/feeds/wasp_sub"
 
 // Create modem serial port
 TinyGsm modem(SerialAT);
@@ -101,14 +101,20 @@ TinyGsm modem(SerialAT);
 TinyGsmClient client(modem);
 
 // Setup the MQTT client class by passing in the client and MQTT server and login details.
+#ifdef ADAFRUIT
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_USERNAME, AIO_KEY);
+#else
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT);
+#endif
 
 // Topic publishing.
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
-Adafruit_MQTT_Publish client_pub = Adafruit_MQTT_Publish(&mqtt, AIO_CHANNEL_PUB);
+Adafruit_MQTT_Publish board_temp_sub = Adafruit_MQTT_Publish(&mqtt, AIO_CHANNEL_P1);
+Adafruit_MQTT_Publish probe_temp_sub = Adafruit_MQTT_Publish(&mqtt, AIO_CHANNEL_P2);
+Adafruit_MQTT_Publish probe_pH_sub = Adafruit_MQTT_Publish(&mqtt, AIO_CHANNEL_P3);
 
 // Topic subscription.
-Adafruit_MQTT_Subscribe client_sub = Adafruit_MQTT_Subscribe(&mqtt, AIO_CHANNEL_SUB);
+Adafruit_MQTT_Subscribe client_sub = Adafruit_MQTT_Subscribe(&mqtt, AIO_CHANNEL_S1);
 
 // Settings structure
 struct StoreStruct {
@@ -119,7 +125,7 @@ struct StoreStruct {
 	0
 };
 
-uint16_t ADC_0_measurement;
+int ADC_0_measurement;
 
 void loadConfig() {
 	if (EEPROM.read(CONFIG_START + 0) == CONFIG_VERSION[0] && EEPROM.read(CONFIG_START + 1) == CONFIG_VERSION[1] && EEPROM.read(CONFIG_START + 2) == CONFIG_VERSION[2])
@@ -140,32 +146,37 @@ void MQTT_Connect() {
 	if (mqtt.connected()) {
 		return;
 	}
+	else{
+		modem.sendAT(GF("+CIPCLOSE"));
+		modem.waitResponse();
+	}
 	
 	while((mqtt_conn = mqtt.connect()) != 0) {
 		Serial.println(mqtt.connectErrorString(mqtt_conn));
 		if(retries > 0) {
 			Serial.println("Retrying MQTT connection in 5 seconds...");
 			mqtt.disconnect();
+			retries--;
+			delay(5000);  // wait 5 seconds
 		}
 		if (retries == 0) {
 			Serial.println("MQTT connection failed check parameters. :=(");
 			while(1);
 		}
-		retries--;
-		delay(5000);  // wait 5 seconds
 	}
 	
 	Serial.println("MQTT Connected!");
 }
 
 float getTemp(char sensor_type){
-	float temperature = 0;
-
+	float temperature;
+	ADC_0_measurement = 0;
+	
 	switch(sensor_type)
 	{
 		case LM35:
-		ADC_0_measurement = analogRead(LM35);
-		temperature = ((float)ADC_0_measurement * Vref /(1023))/0.01;
+		ADC_0_measurement = analogRead(A0);
+		temperature = ((float)ADC_0_measurement * Vref / (1023.f)) / 10;
 		break;
 		
 		case DS18B20:
@@ -191,27 +202,26 @@ float getPH()
 }
 
 uint32_t tGetTemperatureMillis = 0;
-float g[2];
+float MQTTData[3];
 void TaskGetTemperature(void)
 {
 	uint32_t cMillis = millis();
 	
 	if (cMillis - tGetTemperatureMillis >= INTERVAL_5000)
 	{
-		g[0] = getTemp(LM35);
-		g[1] = getTemp(DS18B20);
+		MQTTData[0] = getTemp(LM35);
+		MQTTData[1] = getTemp(DS18B20);
 		tGetTemperatureMillis = cMillis;
 	}
 }
 
 uint32_t tSampleFluidMillis = 0;
-float pH_VALUE;
 void TaskGetpH(void)
 {
 	uint32_t cMillis = millis();
 	if (cMillis - tSampleFluidMillis >= INTERVAL_10000)
 	{
-		pH_VALUE = getPH();
+		MQTTData[3] = getPH();
 		tSampleFluidMillis = cMillis;
 	}
 }
@@ -280,9 +290,7 @@ void TaskPublishData(void)
 			Serial.println(" fail");
 			while (true);
 		}
-		
-		MQTT_Connect();
-		
+
 		String m = modem.getNetworkTime();
 		char charBuf[m.length() + 1];
 		m.toCharArray(charBuf, m.length());
@@ -294,83 +302,78 @@ void TaskPublishData(void)
 	
 		if(rTimeStamp >= storage.epoch)
 		{	
- 			char payload[40];
- 			sprintf(payload, "{\"BTEMP\":\"%.2f\",\"PTEMP\":\"%.2f\",\"pH\":\"%.2f\"}", g[0], g[1], pH_VALUE);
-			if (client_pub.publish(payload)) 
+			char result[7] = "";		 
+			dtostrf(MQTTData[0], 3, 1, result);
+			if(!board_temp_sub.publish(result))
 			{
-				storage.epoch = rTimeStamp + (TimeToTicks(3, 0, 0) * TicksInMillisecond);
-				saveConfig();
+				Serial.println("Publishing board temperature failed");
+				return;
 			}
-			else
+			
+			dtostrf(MQTTData[1], 3, 1, result);
+			if(!probe_temp_sub.publish(result))
 			{
-				Serial.println("Publishing payload failed");
+				Serial.println("Publishing probe temperature failed");
+				return;
+			}
+			
+			dtostrf(MQTTData[2], 3, 1, result);
+			if(!probe_pH_sub.publish(result))
+			{
+				Serial.println("Publishing probe pH failed");
+				return;
+			}
+			
+			storage.epoch = rTimeStamp;
+		}
+		else
+		{
+			// ping the server to keep the mqtt connection alive
+			// NOT required if you are publishing once every KEEPALIVE seconds
+			if(! mqtt.ping()) {
+				mqtt.disconnect();
 			}
 		}
 		tPublishDataMillis = cMillis;
 	}
 }
-	
-int main(void)
-{
-	mcu_init();
-	init();
-	initVariant();
-
-#if defined(USBCON)
-	USBDevice.attach();
-#endif
-	
-	setup();
-    
-	for (;;) 
-	{
-		loop();
-		if (serialEventRun) serialEventRun();
-	}
-        
-	return 0;
-}
 
 void setup()
 {	
-	/* Enable TIMER0 for delay to work */
-	PRR0 &= ~(1 << PRTIM0);
-	
-	/* Set pin direction to input */
-	PORTD_set_pin_dir(0, PORT_DIR_IN);
-	/* Turn off pull mode */
-	PORTD_set_pin_pull_mode(0, PORT_PULL_OFF);
-	/* Set pin direction to output */
-	PORTD_set_pin_dir(1, PORT_DIR_OUT);
-	/* Set pin level to low */
-	PORTD_set_pin_level(1, false);
-	/* Enable USART0 */
-	PRR0 &= ~(1 << PRUSART0);
 	Serial.begin(9600);
+	pinMode(A0, INPUT);
+	pinMode(30, OUTPUT);
+	pinMode(A2, INPUT);
+	analogReference(INTERNAL1V1);
 	
+	/*while(true){
+		digitalWrite(30, HIGH);
+		delay(1000);
+		digitalWrite(30, LOW);
+		delay(1000);
+	}*/
+	
+	// locate devices on the bus
+	Serial.print("Locating devices...");
 	TEMP_PROBE.begin();
-	
-	/* Set pin direction to input */
-	PORTD_set_pin_dir(2, PORT_DIR_IN);
-	/* Turn off pull mode */
-	PORTD_set_pin_pull_mode(2, PORT_PULL_OFF);
-	/* Set pin direction to output */
-	PORTD_set_pin_dir(3, PORT_DIR_OUT);
-	/* Set pin level to low */
-	PORTD_set_pin_level(3, false);
-	/* Enable USART1 */
-	PRR0 &= ~(1 << PRUSART1);
+	Serial.print("Found ");
+	Serial.print(TEMP_PROBE.getDeviceCount(), DEC);
+	Serial.println(" devices.");
+
 	SerialAT.begin(9600);
 	while(!SerialAT);
 	
 	delay(1000);
 	
 	loadConfig();
-	modem.factoryDefault();
+	while(!modem.factoryDefault());
+	
+	storage.epoch = GetTimeStamp(17, 9, 1, 0, 0, 0);
 	
 	if(storage.epoch == 0)
 	{
 		storage.epoch = GetTimeStamp(17, 9, 1, 0, 0, 0);
+		//storage.epoch = epoch;
 		saveConfig();
 	}
 
@@ -396,12 +399,17 @@ void setup()
 	}
 	
 	Serial.println("Connection established");
+	
 	mqtt.subscribe(&client_sub);
 }
 
-/*Adafruit_MQTT_Subscribe *subscription;*/
 void loop()
 {
+	// Ensure the connection to the MQTT server is alive (this will make the first
+	// connection and automatically reconnect when disconnected).  See the MQTT_connect
+	// function definition further below.
+	MQTT_Connect();
+	
 	TaskGetTemperature();
 	TaskGetpH();
 	TaskPublishData();

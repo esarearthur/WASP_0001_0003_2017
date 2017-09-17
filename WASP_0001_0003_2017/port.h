@@ -784,7 +784,7 @@ static inline void mcu_init(void)
 	| (1 << PRUSART0) | (1 << PRADC);
 
 	/* Set all pins to low power mode */
-	PORTA_set_port_dir(0xff, PORT_DIR_OFF);
+	PORTA_set_port_dir(0xF8, PORT_DIR_OFF);
 	PORTB_set_port_dir(0xff, PORT_DIR_OFF);
 	PORTC_set_port_dir(0xFF, PORT_DIR_OFF);
 	PORTD_set_port_dir(0xff, PORT_DIR_OFF);

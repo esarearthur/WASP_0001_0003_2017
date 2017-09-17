@@ -13,12 +13,15 @@
 //#define TINY_GSM_USE_HEX
 
 #if !defined(TINY_GSM_RX_BUFFER)
-  #define TINY_GSM_RX_BUFFER 64
+  #define TINY_GSM_RX_BUFFER 100
 #endif
 
 #define TINY_GSM_MUX_COUNT 5
 
 #include <TinyGsmCommon.h>
+
+#define RESP_OK 1
+#define RESP_ERR 2
 
 #define GSM_NL "\r\n"
 static const char GSM_OK[] TINY_GSM_PROGMEM = "OK" GSM_NL;
@@ -39,524 +42,601 @@ enum RegStatus {
 	REG_UNKNOWN      = 4,
 };
 
-enum RespAT {
-	RESP_OK = 1,
-	RESP_ERR = 2,
-};
-
-
 class TinyGsm
 {
-
+/*
+GSMClient Class
+*/
 public:
+	class GsmClient : public Client
+	{
+		friend class TinyGsm;
+		typedef TinyGsmFifo<uint8_t, TINY_GSM_RX_BUFFER> RxFifo;
 
-class GsmClient : public Client
-{
-  friend class TinyGsm;
-  typedef TinyGsmFifo<uint8_t, TINY_GSM_RX_BUFFER> RxFifo;
+	public:
+		GsmClient() {}
 
+		GsmClient(TinyGsm& modem, uint8_t mux = 1) {
+			init(&modem, mux);
+		}
+
+		bool init(TinyGsm* modem, uint8_t mux = 1) {
+			this->at = modem;
+			this->mux = mux;
+			sock_available = 0;
+			prev_check = 0;
+			sock_connected = false;
+			got_data = false;
+
+			at->sockets[mux] = this;
+
+			return true;
+		}
+
+		virtual int connect(const char *host, uint16_t port) {
+			TINY_GSM_YIELD();
+			rx.clear();
+			sock_connected = at->modemConnect(host, port, mux);
+			return sock_connected;
+		}
+
+		virtual int connect(IPAddress ip, uint16_t port) {
+			String host; host.reserve(16);
+			host += ip[0];
+			host += ".";
+			host += ip[1];
+			host += ".";
+			host += ip[2];
+			host += ".";
+			host += ip[3];
+			return connect(host.c_str(), port);
+		}
+
+		virtual void stop() {
+			TINY_GSM_YIELD();
+			at->sendAT(GF("+CIPCLOSE="), mux);
+			sock_connected = false;
+			at->waitResponse();
+		}
+
+		virtual size_t write(const uint8_t *buf, size_t size) {
+			TINY_GSM_YIELD();
+			at->maintain();
+			return at->modemSend(buf, size, mux);
+		}
+
+		virtual size_t write(uint8_t c) {
+			return write(&c, 1);
+		}
+
+		virtual int available() {
+		TINY_GSM_YIELD();
+		if (sock_connected && !rx.size()) {
+			// Workaround: sometimes SIM800 forgets to notify about data arrival.
+			// TODO: Currently we ping the module periodically,
+			// but maybe there's a better indicator that we need to poll
+			if (millis() - prev_check > 500) {
+				got_data = true;
+				prev_check = millis();
+			}
+			at->maintain();
+		}
+		return rx.size() + sock_available;
+		}
+
+		virtual int read(uint8_t *buf, size_t size) {
+		TINY_GSM_YIELD();
+		at->maintain();
+		size_t cnt = 0;
+		while (cnt < size) {
+			size_t chunk = TinyGsmMin(size-cnt, rx.size());
+			if (chunk > 0) {
+				rx.get(buf, chunk);
+				buf += chunk;
+				cnt += chunk;
+				continue;
+			}
+			// TODO: Read directly into user buffer?
+			at->maintain();
+			if (sock_available > 0) {
+				at->modemRead(rx.free(), mux);
+			} else {
+				break;
+			}
+		}
+		return cnt;
+		}
+
+		virtual int read() {
+			uint8_t c;
+			if (read(&c, 1) == 1) {
+				return c;
+			}
+			return -1;
+		}
+
+		virtual int peek() { return -1; } //TODO
+		virtual void flush() { at->stream.flush(); }
+
+		virtual uint8_t connected() {
+			if (available()) {
+				return true;
+			}
+			return sock_connected;
+		}
+		virtual operator bool() { return connected(); }
+	  
+	private:
+		TinyGsm*      at;
+		uint8_t       mux;
+		uint16_t      sock_available;
+		uint32_t      prev_check;
+		bool          sock_connected;
+		bool          got_data;
+		RxFifo        rx;
+	};
+/*
+End GSMClient Class
+*/
+
+
+/*
+TinyGSM Class
+*/
 public:
-  GsmClient() {}
+	TinyGsm(Stream& stream) : stream(stream)
+	{
+		setCommandCounter(1);
+		memset(sockets, 0, sizeof(sockets));
+	}
+	
+	/** Get command counter
+		@return command counter
+		*/
+	uint8_t getCommandCounter(){return commandCounter;};
+		
+	/** Set command counter
+		@param c			Initial value
+		*/
+	void setCommandCounter(uint8_t c){commandCounter=c;};
 
-  GsmClient(TinyGsm& modem, uint8_t mux = 1) {
-    init(&modem, mux);
-  }
-
-  bool init(TinyGsm* modem, uint8_t mux = 1) {
-    this->at = modem;
-    this->mux = mux;
-    sock_available = 0;
-    prev_check = 0;
-    sock_connected = false;
-    got_data = false;
-
-    at->sockets[mux] = this;
-
-    return true;
-  }
-
-public:
-  virtual int connect(const char *host, uint16_t port) {
-    TINY_GSM_YIELD();
-    rx.clear();
-    sock_connected = at->modemConnect(host, port, mux);
-    return sock_connected;
-  }
-
-  virtual int connect(IPAddress ip, uint16_t port) {
-    String host; host.reserve(16);
-    host += ip[0];
-    host += ".";
-    host += ip[1];
-    host += ".";
-    host += ip[2];
-    host += ".";
-    host += ip[3];
-    return connect(host.c_str(), port);
-  }
-
-  virtual void stop() {
-    TINY_GSM_YIELD();
-    at->sendAT(GF("+CIPCLOSE="), mux);
-    sock_connected = false;
-    at->waitResponse();
-  }
-
-  virtual size_t write(const uint8_t *buf, size_t size) {
-    TINY_GSM_YIELD();
-    at->maintain();
-    return at->modemSend(buf, size, mux);
-  }
-
-  virtual size_t write(uint8_t c) {
-    return write(&c, 1);
-  }
-
-  virtual int available() {
-    TINY_GSM_YIELD();
-    if (sock_connected && !rx.size()) {
-      // Workaround: sometimes SIM800 forgets to notify about data arrival.
-      // TODO: Currently we ping the module periodically,
-      // but maybe there's a better indicator that we need to poll
-      if (millis() - prev_check > 500) {
-        got_data = true;
-        prev_check = millis();
-      }
-      at->maintain();
-    }
-    return rx.size() + sock_available;
-  }
-
-  virtual int read(uint8_t *buf, size_t size) {
-    TINY_GSM_YIELD();
-    at->maintain();
-    size_t cnt = 0;
-    while (cnt < size) {
-      size_t chunk = TinyGsmMin(size-cnt, rx.size());
-      if (chunk > 0) {
-        rx.get(buf, chunk);
-        buf += chunk;
-        cnt += chunk;
-        continue;
-      }
-      // TODO: Read directly into user buffer?
-      at->maintain();
-      if (sock_available > 0) {
-        at->modemRead(rx.free(), mux);
-      } else {
-        break;
-      }
-    }
-    return cnt;
-  }
-
-  virtual int read() {
-    uint8_t c;
-    if (read(&c, 1) == 1) {
-      return c;
-    }
-    return -1;
-  }
-
-  virtual int peek() { return -1; } //TODO
-  virtual void flush() { at->stream.flush(); }
-
-  virtual uint8_t connected() {
-    if (available()) {
-      return true;
-    }
-    return sock_connected;
-  }
-  virtual operator bool() { return connected(); }
-private:
-  TinyGsm*      at;
-  uint8_t       mux;
-  uint16_t      sock_available;
-  uint32_t      prev_check;
-  bool          sock_connected;
-  bool          got_data;
-  RxFifo        rx;
-};
-
-public:
-
-  TinyGsm(Stream& stream) : stream(stream)
-  {
-    memset(sockets, 0, sizeof(sockets));
-  }
-
-  /*
-   * Basic functions
-   */
-  bool begin() {
-    return init();
-  }
-
-  bool init() {
-    if (!autoBaud()) {
-      return false;
-    }
-    sendAT(GF("&FZ"));  // Factory + Reset
-    waitResponse();
-    sendAT(GF("E0"));   // Echo Off
-    if (waitResponse() != RESP_OK) {
-      return false;
-    }
-    getSimStatus();
-    return true;
-  }
-
-  bool autoBaud(unsigned long timeout = 10000UL) {
-    //streamWrite(GF("AAAAA" GSM_NL));  // TODO: extra A's to help detect the baud rate
-    for (unsigned long start = millis(); millis() - start < timeout; ) {
-      sendAT(GF(""));
-      if (waitResponse(200) == 1) {
-          delay(100);
-          return true;
-      }
-      delay(100);
-    }
-    return false;
-  }
-
-  void maintain() {
-    for (int mux = 0; mux < TINY_GSM_MUX_COUNT; mux++) {
-      GsmClient* sock = sockets[mux];
-      if (sock && sock->got_data) {
-        sock->got_data = false;
-        sock->sock_available = modemGetAvailable(mux);
-      }
-    }
-    while (stream.available()) {
-      waitResponse(10, NULL, NULL);
-    }
-  }
-
-  bool factoryDefault() {
-    sendAT(GF("&FZE0&W"));  // Factory + Reset + Echo Off + Write
-    waitResponse();
-	sendAT(GF("E&W"));		// Factory + Reset + Echo Off + Write
-	waitResponse();
-    sendAT(GF("+IPR=0"));   // Auto-baud
-    waitResponse();
-    sendAT(GF("+IFC=0,0")); // No Flow Control
-    waitResponse();
-    sendAT(GF("+ICF=3,3")); // 8 data 0 parity 1 stop
-    waitResponse();
-    sendAT(GF("+CSCLK=0")); // Disable Slow Clock
-    waitResponse();
-	delay(5000);
-	sendAT(GF("+CLTS=1"));	// Get local time from mobile network
-	if (waitResponse(10000L) != 1) {
+	/**
+		Basic functions
+		*/
+	bool begin() {
+		return init();
+	}
+	
+	/** Initialize modem
+		@return true or false
+		*/
+	bool init() {
+		if (!autoBaud()) {
+			return false;
+		}
+		sendAT(GF("&FZ"));  // Factory + Reset
+		waitResponse();
+		sendAT(GF("E0"));   // Echo Off
+		if (waitResponse() != RESP_OK) {
+			return false;
+		}
+		getSimStatus();
+		return true;
+	}
+	
+	/** Set modem as auto baud rate
+		@param timeout			timeout value
+		@return true or false
+		*/
+	bool autoBaud(unsigned long timeout = 10000UL) {
+		//streamWrite(GF("AAAAA" GSM_NL));  // TODO: extra A's to help detect the baud rate
+		for (unsigned long start = millis(); millis() - start < timeout; ) {
+			sendAT(GF(""));
+			if (waitResponse(200UL) == 1) {
+				delay(100);
+				return true;
+			}
+			delay(100);
+		}
 		return false;
 	}
-	sendAT(GF("+CENG=3"));// Enable engineering mode
-	if (waitResponse(10000L) != 1) {
-		return false;
+
+	void maintain() {
+		for (int mux = 0; mux < TINY_GSM_MUX_COUNT; mux++) {
+			GsmClient* sock = sockets[mux];
+			if (sock && sock->got_data) {
+				sock->got_data = false;
+				sock->sock_available = modemGetAvailable(mux);
+			}
+		}
+		while (stream.available()) {
+			waitResponse(10UL, NULL, NULL);
+		}
 	}
-	sendAT(GF("+CTZU=1"));	// Enable local time zone
-	if (waitResponse(10000L) != 1) {
-		return false;
+
+	bool factoryDefault() {
+		uint8_t cc = getCommandCounter();
+		uint8_t commandDone = false;
+		switch(cc){
+			case 1:
+			sendAT(GF("&FZE0&W"));  // Factory + Reset + Echo Off + Write
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(2);
+			}
+			break;
+			
+			case 2:
+			sendAT(GF("E&W")); 
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(3);
+			}
+			break;
+			
+			case 3:
+			sendAT(GF("E&W")); 
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(4);
+			}
+			break;
+			
+			case 4:
+			sendAT(GF("+IPR=0")); 
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(5);
+			}
+			break;
+			
+			case 5:
+			sendAT(GF("+IFC=0,0")); 
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(6);
+			}
+			break;
+			
+			case 6:
+			sendAT(GF("+ICF=3,3")); 
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(7);
+			}
+			break;
+			
+			case 7:
+			sendAT(GF("+CSCLK=0"));
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(8);
+			}
+			break;
+			
+			case 8:
+			sendAT(GF("+CLTS=1"));
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(9);
+			}else{
+				Serial.println("Mobile network does not support NITZ");
+				setCommandCounter(11);
+			}
+			break;
+			
+			case 9:
+			sendAT(GF("+CENG=3"));
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(10);
+			}
+			break;
+			
+			case 10:
+			sendAT(GF("+CTZU=1"));
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(11);
+			}
+			break;
+			
+			case 11:
+			sendAT(GF("&W"));
+			if (waitResponse(3000UL) == RESP_OK) {
+				setCommandCounter(1);
+				commandDone = true;
+			}
+			break;
+		}
+		return commandDone;
 	}
-    sendAT(GF("&W"));       // Write configuration
-    return waitResponse() == 1;
-  }
 
   /*
    * Power functions
    */
 
-  bool restart() {
-    if (!autoBaud()) {
-      return false;
-    }
-    sendAT(GF("+CFUN=0"));
-    if (waitResponse(10000L) != 1) {
-      return false;
-    }
-    sendAT(GF("+CFUN=1,1"));
-    if (waitResponse(10000L) != 1) {
-      return false;
-    }
-    delay(3000);
-    return init();
-  }
+	bool restart() {
+		if (!autoBaud()) {
+			return false;
+		}
+		sendAT(GF("+CFUN=0"));
+		if (waitResponse(10000L) != RESP_OK) {
+			return false;
+		}
+		sendAT(GF("+CFUN=1,1"));
+		if (waitResponse(10000L) != RESP_OK) {
+			return false;
+		}
+		delay(3000);
+		return init();
+	}
 
-  bool radioOff() {
-    if (!autoBaud()) {
-      return false;
-    }
-    sendAT(GF("+CFUN=0"));
-    if (waitResponse(10000L) != 1) {
-      return false;
-    }
-    delay(3000);
-    return true;
-  }
+	bool radioOff() {
+		if (!autoBaud()) {
+			return false;
+		}
+		sendAT(GF("+CFUN=0"));
+		if (waitResponse(10000L) != RESP_OK) {
+			return false;
+		}
+		delay(3000);
+		return true;
+	}
 
   /*
    * SIM card functions
    */
 
-  bool simUnlock(const char *pin) {
-    sendAT(GF("+CPIN=\""), pin, GF("\""));
-    return waitResponse() == 1;
-  }
+	bool simUnlock(const char *pin) {
+		sendAT(GF("+CPIN=\""), pin, GF("\""));
+		return waitResponse() == RESP_OK;
+	}
 
-  String getSimCCID() {
-    sendAT(GF("+ICCID"));
-    if (waitResponse(GF(GSM_NL "+ICCID:")) != 1) {
-      return "";
-    }
-    String res = stream.readStringUntil('\n');
-    waitResponse();
-    res.trim();
-    return res;
-  }
+	String getSimCCID() {
+		sendAT(GF("+ICCID"));
+		if (waitResponse(GF(GSM_NL "+ICCID:")) != RESP_OK) {
+			return "";
+		}
+		String res = stream.readStringUntil('\n');
+		waitResponse();
+		res.trim();
+		return res;
+	}
 
-  String getIMEI() {
-    sendAT(GF("+GSN"));
-    if (waitResponse(GF(GSM_NL)) != 1) {
-      return "";
-    }
-    String res = stream.readStringUntil('\n');
-    waitResponse();
-    res.trim();
-    return res;
-  }
+	String getIMEI() {
+		sendAT(GF("+GSN"));
+		if (waitResponse(GF(GSM_NL)) != RESP_OK) {
+			return "";
+		}
+		String res = stream.readStringUntil('\n');
+		waitResponse();
+		res.trim();
+		return res;
+	}
 
-  SimStatus getSimStatus(unsigned long timeout = 10000L) {
-    for (unsigned long start = millis(); millis() - start < timeout; ) {
-      sendAT(GF("+CPIN?"));
-      if (waitResponse(GF(GSM_NL "+CPIN:")) != 1) {
-        delay(1000);
-        continue;
-      }
-      int status = waitResponse(GF("READY"), GF("SIM PIN"), GF("SIM PUK"), GF("NOT INSERTED"));
-      waitResponse();
-      switch (status) {
-      case 2:
-      case 3:  return SIM_LOCKED;
-      case 1:  return SIM_READY;
-      default: return SIM_ERROR;
-      }
-    }
-    return SIM_ERROR;
-  }
+	SimStatus getSimStatus(unsigned long timeout = 10000L) {
+		for (unsigned long start = millis(); millis() - start < timeout; ) {
+			sendAT(GF("+CPIN?"));
+			if (waitResponse(GF(GSM_NL "+CPIN:")) != RESP_OK) {
+				delay(1000);
+				continue;
+			}
+			int status = waitResponse(GF("READY"), GF("SIM PIN"), GF("SIM PUK"), GF("NOT INSERTED"));
+			waitResponse();
+			switch (status) {
+				case 2:
+				case 3:  return SIM_LOCKED;
+				case 1:  return SIM_READY;
+				default: return SIM_ERROR;
+			}
+		}
+		return SIM_ERROR;
+	}
 
-  RegStatus getRegistrationStatus() {
-    sendAT(GF("+CREG?"));
-    if (waitResponse(GF(GSM_NL "+CREG:")) != 1) {
-      return REG_UNKNOWN;
-    }
-    streamSkipUntil(','); // Skip format (0)
-    int status = stream.readStringUntil('\n').toInt();
-    waitResponse();
-    return (RegStatus)status;
-  }
+	RegStatus getRegistrationStatus() {
+	sendAT(GF("+CREG?"));
+	if (waitResponse(GF(GSM_NL "+CREG:")) != RESP_OK) {
+		return REG_UNKNOWN;
+	}
+	streamSkipUntil(','); // Skip format (0)
+	int status = stream.readStringUntil('\n').toInt();
+	waitResponse();
+	return (RegStatus)status;
+	}
 
-  String getOperator() {
-    sendAT(GF("+COPS?"));
-    if (waitResponse(GF(GSM_NL "+COPS:")) != 1) {
-      return "";
-    }
-    streamSkipUntil('"'); // Skip mode and format
-    String res = stream.readStringUntil('"');
-    waitResponse();
-    return res;
-  }
+	String getOperator() {
+	sendAT(GF("+COPS?"));
+	if (waitResponse(GF(GSM_NL "+COPS:")) != RESP_OK) {
+		return "";
+	}
+	streamSkipUntil('"'); // Skip mode and format
+	String res = stream.readStringUntil('"');
+	waitResponse();
+	return res;
+	}
 
   /*
    * Generic network functions
    */
 
-  int getSignalQuality() {
-    sendAT(GF("+CSQ"));
-    if (waitResponse(GF(GSM_NL "+CSQ:")) != 1) {
-      return 99;
-    }
-    int res = stream.readStringUntil(',').toInt();
-    waitResponse();
-    return res;
-  }
+	int getSignalQuality() {
+		sendAT(GF("+CSQ"));
+		if (waitResponse(GF(GSM_NL "+CSQ:")) != RESP_OK) {
+			return 99;
+		}
+		int res = stream.readStringUntil(',').toInt();
+		waitResponse();
+		return res;
+	}
 
-  bool waitForNetwork(unsigned long timeout = 60000L) {
-    for (unsigned long start = millis(); millis() - start < timeout; ) {
-      RegStatus s = getRegistrationStatus();
-      if (s == REG_OK_HOME || s == REG_OK_ROAMING) {
-        return true;
-      }
-      delay(1000);
-    }
-    return false;
-  }
+	bool waitForNetwork(unsigned long timeout = 60000L) {
+		for (unsigned long start = millis(); millis() - start < timeout; ) {
+			RegStatus s = getRegistrationStatus();
+			if (s == REG_OK_HOME || s == REG_OK_ROAMING) {
+				return true;
+			}
+			delay(1000);
+		}
+		return false;
+	}
 
   /*
    * GPRS functions
    */
-  bool gprsConnect(const char* apn, const char* user, const char* pwd) {
-    sendAT(GF("+CIFSR;E0"));
-    String res;
+	bool gprsConnect(const char* apn, const char* user, const char* pwd) {
+	sendAT(GF("+CIFSR;E0"));
+	String res;
 	if (waitResponse(5000L) != 2) {
-	    return true;
-    }
+		return true;
+	}
 
 	gprsDisconnect();
 
-    sendAT(GF("+SAPBR=3,1,\"Contype\",\"GPRS\""));
-    waitResponse();
+	sendAT(GF("+SAPBR=3,1,\"Contype\",\"GPRS\""));
+	waitResponse();
 
-    sendAT(GF("+SAPBR=3,1,\"APN\",\""), apn, '"');
-    waitResponse();
+	sendAT(GF("+SAPBR=3,1,\"APN\",\""), apn, '"');
+	waitResponse();
 
-    if (user) {
-      sendAT(GF("+SAPBR=3,1,\"USER\",\""), user, '"');
-      waitResponse();
-    }
-    if (pwd) {
-      sendAT(GF("+SAPBR=3,1,\"PWD\",\""), pwd, '"');
-      waitResponse();
-    }
+	if (user) {
+		sendAT(GF("+SAPBR=3,1,\"USER\",\""), user, '"');
+		waitResponse();
+	}
+	if (pwd) {
+		sendAT(GF("+SAPBR=3,1,\"PWD\",\""), pwd, '"');
+		waitResponse();
+	}
 
-    sendAT(GF("+CGDCONT=1,\"IP\",\""), apn, '"');
-    waitResponse();
+	sendAT(GF("+CGDCONT=1,\"IP\",\""), apn, '"');
+	waitResponse();
 
-    sendAT(GF("+CGACT=1,1"));
-    waitResponse(60000L);
+	sendAT(GF("+CGACT=1,1"));
+	waitResponse(60000L);
 
-    // Open a GPRS context
-    sendAT(GF("+SAPBR=1,1"));
-    waitResponse(85000L);
-    // Query the GPRS context
-    sendAT(GF("+SAPBR=2,1"));
-    if (waitResponse(30000L) != 1)
-      return false;
+	// Open a GPRS context
+	sendAT(GF("+SAPBR=1,1"));
+	waitResponse(85000L);
+	// Query the GPRS context
+	sendAT(GF("+SAPBR=2,1"));
+	if (waitResponse(30000L) != 1)
+		return false;
 
-    sendAT(GF("+CGATT=1"));
-    if (waitResponse(60000L) != 1)
-      return false;
+	sendAT(GF("+CGATT=1"));
+	if (waitResponse(60000L) != 1)
+		return false;
 
-    // TODO: wait AT+CGATT?
+	// TODO: wait AT+CGATT?
 
-    sendAT(GF("+CIPMUX=1"));
-    if (waitResponse() != 1) {
-      return false;
-    }
+	sendAT(GF("+CIPMUX=1"));
+	if (waitResponse() != 1) {
+		return false;
+	}
 
-    sendAT(GF("+CIPQSEND=1"));
-    if (waitResponse() != 1) {
-      return false;
-    }
+	sendAT(GF("+CIPQSEND=1"));
+	if (waitResponse() != 1) {
+		return false;
+	}
 
-    sendAT(GF("+CIPRXGET=1"));
-    if (waitResponse() != 1) {
-      return false;
-    }
+	sendAT(GF("+CIPRXGET=1"));
+	if (waitResponse() != 1) {
+		return false;
+	}
 
-    sendAT(GF("+CSTT=\""), apn, GF("\",\""), user, GF("\",\""), pwd, GF("\""));
-    if (waitResponse(60000L) != 1) {
-      return false;
-    }
+	sendAT(GF("+CSTT=\""), apn, GF("\",\""), user, GF("\",\""), pwd, GF("\""));
+	if (waitResponse(60000L) != 1) {
+		return false;
+	}
 
-    sendAT(GF("+CIICR"));
-    if (waitResponse(60000L) != 1) {
-      return false;
-    }
+	sendAT(GF("+CIICR"));
+	if (waitResponse(60000L) != 1) {
+		return false;
+	}
 
-    sendAT(GF("+CIFSR;E0"));
-    String data;
-    if (waitResponse(10000L, data) != 1) {
-      data.replace(GSM_NL, "");
-      return false;
-    }
+	sendAT(GF("+CIFSR;E0"));
+	String data;
+	if (waitResponse(10000L, data) != 1) {
+		data.replace(GSM_NL, "");
+		return false;
+	}
 
-    sendAT(GF("+CDNSCFG=\"8.8.8.8\",\"8.8.4.4\""));
-    if (waitResponse() != 1) {
-      return false;
-    }
+	sendAT(GF("+CDNSCFG=\"8.8.8.8\",\"8.8.4.4\""));
+	if (waitResponse() != 1) {
+		return false;
+	}
 
-    return true;
-  }
+	return true;
+	}
 
-  bool gprsDisconnect() {
-    sendAT(GF("+CIPSHUT"));
-    return waitResponse(60000L) == 1;
-  } 
+	bool gprsDisconnect() {
+		sendAT(GF("+CIPSHUT"));
+		return waitResponse(60000L) == 1;
+	}
 
   /*
    * Phone Call functions
    */
 
-  bool setGsmBusy(bool busy = true) {
-    sendAT(GF("+GSMBUSY="), busy ? 1 : 0);
-    return waitResponse() == 1;
-  }
+	bool setGsmBusy(bool busy = true) {
+		sendAT(GF("+GSMBUSY="), busy ? 1 : 0);
+		return waitResponse() == 1;
+	}
 
-  bool callAnswer() {
-    sendAT(GF("A"));
-    return waitResponse() == 1;
-  }
+	bool callAnswer() {
+		sendAT(GF("A"));
+		return waitResponse() == 1;
+	}
 
-  bool callNumber(const String& number) {
-    sendAT(GF("D"), number);
-    return waitResponse() == 1;
-  }
+	bool callNumber(const String& number) {
+		sendAT(GF("D"), number);
+		return waitResponse() == 1;
+	}
 
-  bool callRedial() {
-    sendAT(GF("DL"));
-    return waitResponse() == 1;
-  }
+	bool callRedial() {
+		sendAT(GF("DL"));
+		return waitResponse() == 1;
+	}
 
-  bool callHangup(const String& number) {
-    sendAT(GF("H"), number);
-    return waitResponse() == 1;
-  }
+	bool callHangup(const String& number) {
+		sendAT(GF("H"), number);
+		return waitResponse() == 1;
+	}
 
   /*
    * Messaging functions
    */
 
-  void sendUSSD() TINY_GSM_ATTR_NOT_IMPLEMENTED;
+	void sendUSSD() TINY_GSM_ATTR_NOT_IMPLEMENTED;
 
-  bool sendSMS(const String& number, const String& text) {
-    sendAT(GF("+CMGF=1"));
-    waitResponse();
-    sendAT(GF("+CMGS=\""), number, GF("\""));
-    if (waitResponse(GF(">")) != 1) {
-      return false;
-    }
-    stream.print(text);
-    stream.write((char)0x1A);
-    stream.flush();
-    return waitResponse(60000L) == 1;
-  }
+	bool sendSMS(const String& number, const String& text) {
+		sendAT(GF("+CMGF=1"));
+		waitResponse();
+		sendAT(GF("+CMGS=\""), number, GF("\""));
+		if (waitResponse(GF(">")) != 1) {
+			return false;
+		}
+		stream.print(text);
+		stream.write((char)0x1A);
+		stream.flush();
+		return waitResponse(60000L) == 1;
+	}
 
-  bool sendSMS_UTF16(const String& number, const void* text, size_t len) {
-    sendAT(GF("+CMGF=1"));
-    waitResponse();
-    sendAT(GF("+CSCS=\"HEX\""));
-    waitResponse();
-    sendAT(GF("+CSMP=17,167,0,8"));
-    waitResponse();
+	bool sendSMS_UTF16(const String& number, const void* text, size_t len) {
+		sendAT(GF("+CMGF=1"));
+		waitResponse();
+		sendAT(GF("+CSCS=\"HEX\""));
+		waitResponse();
+		sendAT(GF("+CSMP=17,167,0,8"));
+		waitResponse();
 
-    sendAT(GF("+CMGS=\""), number, GF("\""));
-    if (waitResponse(GF(">")) != 1) {
-      return false;
-    }
+		sendAT(GF("+CMGS=\""), number, GF("\""));
+		if (waitResponse(GF(">")) != 1) {
+			return false;
+		}
 
-    uint16_t* t = (uint16_t*)text;
-    for (size_t i=0; i<len; i++) {
-      uint8_t c = t[i] >> 8;
-      if (c < 0x10) { stream.print('0'); }
-      stream.print(c, HEX);
-      c = t[i] & 0xFF;
-      if (c < 0x10) { stream.print('0'); }
-      stream.print(c, HEX);
-    }
-    stream.write((char)0x1A);
-    stream.flush();
-    return waitResponse(60000L) == 1;
-  }
+		uint16_t* t = (uint16_t*)text;
+		for (size_t i=0; i<len; i++) {
+			uint8_t c = t[i] >> 8;
+			if (c < 0x10) { stream.print('0'); }
+			stream.print(c, HEX);
+			c = t[i] & 0xFF;
+			if (c < 0x10) { stream.print('0'); }
+			stream.print(c, HEX);
+		}
+		stream.write((char)0x1A);
+		stream.flush();
+		return waitResponse(60000L) == 1;
+	}
 
   /*
    * Network time function
@@ -634,6 +714,9 @@ public:
 	}
 
 private:
+	// Counts the steps by the command
+	uint8_t commandCounter;
+	
 	int modemConnect(const char* host, uint16_t port, uint8_t mux) {
 		sendAT(GF("+CIPSTART="), mux, ',', GF("\"TCP"), GF("\",\""), host, GF("\","), port);
 		int rsp = waitResponse(75000L,
@@ -714,7 +797,6 @@ private:
 	}
 
 public:
-
 	/* Utilities */
 
 	template<typename T>
@@ -758,16 +840,15 @@ public:
 		String r4s(r4); r4s.trim();
 		String r5s(r5); r5s.trim();
 		DBG("### ..:", r1s, ",", r2s, ",", r3s, ",", r4s, ",", r5s);*/
-		data.reserve(64);
+		data.reserve(65);
 		int index = 0;
 		unsigned long startMillis = millis();
 		do {
 			TINY_GSM_YIELD();
 			while (stream.available() > 0) {
-				int a = stream.read();
+				char a = stream.read();
 				if (a <= 0) continue; // Skip 0x00 bytes, just in case
-				data += (char)a;
-				//Serial.write((char)a);
+				data += a;
 				if (r1 && data.endsWith(r1)) {
 					index = 1;
 					goto finish;
@@ -837,6 +918,10 @@ public:
 private:
 	Stream&       stream;
 	GsmClient*    sockets[TINY_GSM_MUX_COUNT];
+	
+/*
+End TinyGSM Class
+*/
 };
 
 typedef TinyGsm::GsmClient TinyGsmClient;

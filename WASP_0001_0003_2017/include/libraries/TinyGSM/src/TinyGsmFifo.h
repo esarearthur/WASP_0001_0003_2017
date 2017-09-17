@@ -125,7 +125,8 @@ public:
 private:
     int _inc(int i, int n = 1)
     {
-        return (i + n) % N;
+        //return (i + n) % N;
+		return ((i + n) - N * ((i + n) / N));
     }
 
     T    _b[N];

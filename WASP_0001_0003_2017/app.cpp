@@ -17,7 +17,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
    
-        MCU: ATMega328P / #ATMega1284P
+        MCU: #ATMega328P / ATMega1284P
        XTAL: 16MHz
    ADC VREF: 5V
    
@@ -34,7 +34,6 @@
 #include <Adafruit_MQTT_Client.h>
 #include <Adafruit_MQTT.h>
 #include <EEPROM.h>
-#include <port.h>
 
 #define LM35    0x00
 #define DS18B20 0x01
@@ -43,10 +42,8 @@
 #define INTERVAL_5000 5000
 #define INTERVAL_10000 10000
 
-#define Vref 1100
-
 // Data wire is plugged into port 2 on the Arduino
-#define ONE_WIRE_BUS 30
+#define ONE_WIRE_BUS A1
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
@@ -60,10 +57,12 @@ DallasTemperature TEMP_PROBE(&oneWire);
 // Set serial for AT commands (to the module)
 // Use Hardware Serial on Mega, Leonardo, Micro
 // Use Software Serial on Uno, Nano
-#ifdef ARDUINO_AVR_UNO
+#if defined(__AVR_ATmega328P__)
 	SoftwareSerial SerialAT(2, 3); // RX, TX
+	#define Vref 5000
 #else
 	#define SerialAT Serial1
+	#define Vref 1100
 #endif
 
 // ID of the settings block
@@ -140,7 +139,7 @@ void saveConfig() {
 
 void MQTT_Connect() {
 	int8_t mqtt_conn;
-	uint8_t retries = 3;
+	uint8_t retries = 3U;
 	
 	// Stop if already connected.
 	if (mqtt.connected()) {
@@ -151,6 +150,7 @@ void MQTT_Connect() {
 		modem.waitResponse();
 	}
 	
+	Serial.println("Connecting to MQTT server");
 	while((mqtt_conn = mqtt.connect()) != 0) {
 		Serial.println(mqtt.connectErrorString(mqtt_conn));
 		if(retries > 0) {
@@ -176,7 +176,7 @@ float getTemp(char sensor_type){
 	{
 		case LM35:
 		ADC_0_measurement = analogRead(A0);
-		temperature = ((float)ADC_0_measurement * Vref / (1023.f)) / 10;
+		temperature = ((float)ADC_0_measurement * Vref / (1023.f)) / 10.f;
 		break;
 		
 		case DS18B20:
@@ -194,7 +194,7 @@ float getPH()
 	uint8_t m = 10;
 	
 	do {
-		ADC_0_measurement += analogRead(pH_SENSOR);
+		ADC_0_measurement += analogRead(A2);
 	}while(--m);
 	
 	ADC_0_measurement = ADC_0_measurement / 10;
@@ -221,7 +221,7 @@ void TaskGetpH(void)
 	uint32_t cMillis = millis();
 	if (cMillis - tSampleFluidMillis >= INTERVAL_10000)
 	{
-		MQTTData[3] = getPH();
+		MQTTData[2] = getPH();
 		tSampleFluidMillis = cMillis;
 	}
 }
@@ -253,7 +253,7 @@ uint32_t DateToTicks(uint8_t year, uint8_t month, uint8_t day)
 			uint16_t daysInPreviousYears = ((((previousYear * 365) + (previousYear / 4)) - (previousYear / 100)) + (previousYear / 400));
 
 			uint16_t totalDays = ((daysInPreviousYears + daysToMonth[month - 1]) + day) - 1;
-			return (totalDays * 86400);
+			return (totalDays * 86400UL);
 		}
 	}
 	return 0;
@@ -261,7 +261,7 @@ uint32_t DateToTicks(uint8_t year, uint8_t month, uint8_t day)
 
 uint32_t TimeToTicks(uint8_t hour, uint8_t minute, uint8_t second)
 {
-	uint32_t totalSeconds = ((hour * 3600L) + (minute * 60L)) + second;
+	uint32_t totalSeconds = ((hour * 3600UL) + (minute * 60U)) + second;
 	//if ((totalSeconds > 0xd6bf94d5e5L) || (totalSeconds < -922337203685L))
 	//return (totalSeconds * TicksInSecond);
 	return totalSeconds;
@@ -341,24 +341,19 @@ void TaskPublishData(void)
 void setup()
 {	
 	Serial.begin(9600);
+	while(!Serial);
 	pinMode(A0, INPUT);
-	pinMode(30, OUTPUT);
+	pinMode(A1, OUTPUT);
 	pinMode(A2, INPUT);
-	analogReference(INTERNAL1V1);
 	
-	/*while(true){
-		digitalWrite(30, HIGH);
-		delay(1000);
-		digitalWrite(30, LOW);
-		delay(1000);
-	}*/
+	#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__)
+	analogReference(DEFAULT);
+	#else
+	analogReference(INTERNAL1V1);
+	#endif
 	
 	// locate devices on the bus
-	Serial.print("Locating devices...");
 	TEMP_PROBE.begin();
-	Serial.print("Found ");
-	Serial.print(TEMP_PROBE.getDeviceCount(), DEC);
-	Serial.println(" devices.");
 
 	SerialAT.begin(9600);
 	while(!SerialAT);
@@ -366,23 +361,18 @@ void setup()
 	delay(1000);
 	
 	loadConfig();
+	Serial.println("Resetting modem");
 	while(!modem.factoryDefault());
-	
-	storage.epoch = GetTimeStamp(17, 9, 1, 0, 0, 0);
 	
 	if(storage.epoch == 0)
 	{
 		storage.epoch = GetTimeStamp(17, 9, 1, 0, 0, 0);
-		//storage.epoch = epoch;
 		saveConfig();
 	}
 
 	// Restart takes quite some time
 	// To skip it, call init() instead of restart()
 	modem.restart();
-
-	// Unlock your SIM card with a PIN
-	//modem.simUnlock("1234");
 
 	Serial.print("Waiting for network ...");
 	if (!modem.waitForNetwork()) 
@@ -391,7 +381,8 @@ void setup()
 		while (true);
 	}
 	Serial.println(" OK");
-
+	
+	Serial.println("Initiating GPRS connection");
 	if (!modem.gprsConnect(GPRS_APN, GPRS_LOGIN, GPRS_PASSWORD)) 
 	{
 		Serial.println(" ... Fail");

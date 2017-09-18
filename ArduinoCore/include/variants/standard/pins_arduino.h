@@ -25,17 +25,15 @@
 
 #include <avr/pgmspace.h>
 
-#define MEGA1284P
-
-#ifdef UNO
+#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__)
 #include "a_mega328p.h"
 #endif
 
-#ifdef MEGA1284P
+#if defined(__AVR_ATmega1284P__) || defined(__AVR_ATmega1284__)
 #include "a_mega1284p.h"
 #endif
 
-#ifdef MEGA2560
+#if defined(__AVR_ATmega2560__)
 #include "a_mega2560.h"
 #endif
 

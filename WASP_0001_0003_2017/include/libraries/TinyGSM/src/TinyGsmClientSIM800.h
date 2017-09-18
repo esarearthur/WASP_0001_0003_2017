@@ -840,7 +840,7 @@ public:
 		String r4s(r4); r4s.trim();
 		String r5s(r5); r5s.trim();
 		DBG("### ..:", r1s, ",", r2s, ",", r3s, ",", r4s, ",", r5s);*/
-		data.reserve(65);
+		data.reserve(64);
 		int index = 0;
 		unsigned long startMillis = millis();
 		do {
